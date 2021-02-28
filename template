@@ -1,0 +1,28 @@
+{
+  "current": 10,
+  "accumulate":56
+  "male":30,
+  "female":26,
+  "age":[4, 16, 14, 22]
+}
+
+{
+   "gender":"male",
+   "age":34
+}
+
+
+{
+    "latestWeek":[34, 45,12, 23,12,56,12,67]
+}
+
+
+{
+    "latestday":[]
+}
+
+
+{
+    "alarmType": 1,
+    "info":"too much people"
+}
