@@ -10,10 +10,16 @@ import cv2
 import json
 import numpy as np
 import base64
+import time
+import logging
+logging.basicConfig(filename='logger.log', level=logging.INFO,
+                    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                        datefmt='%a, %d %b %Y %H:%M:%S',)
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
 # admin.autodiscover()
 MQTT_URL = '127.0.0.1'
+TEST_MODE = True
 def base_view(request):
     print('ssss')
 
@@ -23,12 +29,24 @@ clients = []
 
 @accept_websocket
 def warning(request):
+
     if request.is_websocket:
         lock = threading.RLock()
         try:
             lock.acquire()
             print('receive a new websocket about warning!')
+
             wsclients = request.websocket
+            if TEST_MODE:
+                print('DEBUG MODE')
+                root = dict()
+                root['message'] = 'this is a warning!'
+                while True:
+                    root['type'] = int(np.random.rand(1)[0] * 100)
+                    s = json.dumps(root)
+                    wsclients.send(s)
+                    time.sleep(10)
+
             # print(len(wsclients))
             #subscribe topic by mqtt
             def on_connect(client, userdata, flags, rc):
@@ -56,6 +74,7 @@ def warning(request):
             clients.remove(request.websocket)
             lock.release()
 
+# 	{ 'population': [12, 34] }
 @accept_websocket
 def latestday(request):
     if request.is_websocket:
@@ -64,6 +83,20 @@ def latestday(request):
             lock.acquire()
             print('receive a new websocket about latestday!')
             wsclients = request.websocket
+            if TEST_MODE:
+                print('DEBUG MODE')
+                root = dict()
+                root['population'] = []
+                population = []
+                while True:
+                    time.sleep(7)
+                    x = int(np.random.rand(1)[0] * 100)
+                    population.append(x)
+                    population = population[-9:]
+                    root['population'] = population
+                    s = json.dumps(root)
+                    publish.single('latestday', payload=s, hostname=MQTT_URL)
+
             # print(len(wsclients))
             #subscribe topic by mqtt
             def on_connect(client, userdata, flags, rc):
@@ -91,6 +124,7 @@ def latestday(request):
             clients.remove(request.websocket)
             lock.release()
 
+
 @accept_websocket
 def genderRate(request):
     print('genderRate')
@@ -98,8 +132,21 @@ def genderRate(request):
         lock = threading.RLock()
         try:
             lock.acquire()
-            print('receive a new websocket about genderRate!')
             wsclients = request.websocket
+            if TEST_MODE:
+                logging.info('gender rate test')
+                root = dict()
+                root["ç”·"] = 0
+                root["å¥³"] = 0
+
+                while True:
+                    time.sleep(5)
+                    x = np.random.rand(2) * 100
+                    root["ç”·"] = int(x[0])
+                    root["å¥³"] = int(x[1])
+                    s = json.dumps(root)
+                    wsclients.send(s)
+
             # print(len(wsclients))
             #subscribe topic by mqtt
             def on_connect(client, userdata, flags, rc):
@@ -130,7 +177,7 @@ def genderRate(request):
 def selectPerson(request):
 
     if request.method == "POST":
-        #todo Ö±½Ó×ª·¢£¿
+        #todo Ö±ï¿½ï¿½×ªï¿½ï¿½ï¿½ï¿½
         x = request.POST.get("x", None)
         y = request.POST.get("y", None)
         root = dict()
@@ -328,7 +375,7 @@ def faceAttr(request):
             clients.remove(request.websocket)
             lock.release()
 
-#¶ÁÈ¡Ö¸¶¨Î»ÖÃµÄÍ¼Æ¬²¢Í¨¹ýwebsocket·¢ËÍµ½Ç°¶ËÒ³Ãæ
+
 @accept_websocket
 def offlineImage(request):
     img_path = '/media/img/offline.jpg'
@@ -374,20 +421,30 @@ def offlineImage(request):
             clients.remove(request.websocket)
             lock.release()
 
+#{ 'age': [12, 13, 20, 23] }
 @accept_websocket
-def age(request):
-    print('get a ws from age')
+def ageRate(request):
+    logging.info('age rate')
     if request.is_websocket:
         lock = threading.RLock()
         try:
             lock.acquire()
-            print('receive a new websocket about age!')
             wsclients = request.websocket
+            if TEST_MODE:
+                logging.info('age rate test')
+                while True:
+                    root = dict()
+                    root['age'] = []
+                    age = np.random.randint(low=0, high=100,size=4)
+                    age = [i for i in age]
+                    root['age'] = age
+                    s = json.dumps(root)
+                    wsclients.send(s)
+                    time.sleep(3)
 
             # print(len(wsclients))
             # subscribe topic by mqtt
             def on_connect(client, userdata, flags, rc):
-                print("Connected with result code " + str(rc))
 
                 # Subscribing in on_connect() means that if we lose the connection and
                 # reconnect then subscriptions will be renewed.
@@ -408,20 +465,238 @@ def age(request):
             client.connect(MQTT_URL, 1883, 60)
             client.loop_forever()
         finally:
-            clients.remove(request.websocket)
+            # clients.remove(request.websocket)
             lock.release()
+
+# 	{ 'status': 'åœ¨å²—/æš‚ç¦»/ç¦»å²—' }
+@accept_websocket
+def managerStatus(request):
+    if request.is_websocket:
+        lock = threading.RLock()
+        try:
+            lock.acquire()
+            wsclients = request.websocket
+            if TEST_MODE:
+                logging.info('test managerStatus')
+                status = ['online', 'offline', 'leave']
+                while True:
+                    root = dict()
+                    root['status'] = status[np.random.randint(low=0, high=2,size=1)[0]]
+                    s = json.dumps(root)
+                    wsclients.send(s)
+                    time.sleep(3)
+
+            # print(len(wsclients))
+            # subscribe topic by mqtt
+            def on_connect(client, userdata, flags, rc):
+                print("Connected with result code " + str(rc))
+
+                # Subscribing in on_connect() means that if we lose the connection and
+                # reconnect then subscriptions will be renewed.
+                client.subscribe(topic='age')
+                print('subscribe managerStatus successfully')
+
+            # The callback for when a PUBLISH message is received from the server.
+            def on_message(client, userdata, msg):
+
+                wsclients.send(msg.payload)
+                # for client in clients:
+                #     print(len(clients))
+                #     client.send(msg.payload)
+
+            client = mqtt.Client()
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.connect(MQTT_URL, 1883, 60)
+            client.loop_forever()
+        finally:
+            # clients.remove(request.websocket)
+            lock.release()
+
+#mostStaningTime
+@accept_websocket
+def mostStaningTime(request):
+    if request.is_websocket:
+        lock = threading.RLock()
+        try:
+            lock.acquire()
+            wsclients = request.websocket
+            if TEST_MODE:
+                logging.info('test mostStaningTime')
+                while True:
+                    root = dict()
+                    root['mostStaningTime'] = int(np.random.randint(low=0, high=2000, size=1)[0])
+                    s = json.dumps(root)
+                    wsclients.send(s)
+                    time.sleep(3)
+
+            # print(len(wsclients))
+            # subscribe topic by mqtt
+            def on_connect(client, userdata, flags, rc):
+                print("Connected with result code " + str(rc))
+
+                # Subscribing in on_connect() means that if we lose the connection and
+                # reconnect then subscriptions will be renewed.
+                client.subscribe(topic='age')
+                print('subscribe mostStaningTime successfully')
+
+            # The callback for when a PUBLISH message is received from the server.
+            def on_message(client, userdata, msg):
+
+                wsclients.send(msg.payload)
+                # for client in clients:
+                #     print(len(clients))
+                #     client.send(msg.payload)
+
+            client = mqtt.Client()
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.connect(MQTT_URL, 1883, 60)
+            client.loop_forever()
+        finally:
+            # clients.remove(request.websocket)
+            lock.release()
+
+@accept_websocket
+def numQueue(request):
+    if request.is_websocket:
+        lock = threading.RLock()
+        try:
+            lock.acquire()
+            wsclients = request.websocket
+            if TEST_MODE:
+                logging.info('test numQueue')
+                while True:
+                    root = dict()
+                    root['numberOfQueue'] = int(np.random.randint(low=0, high=50, size=1)[0])
+                    s = json.dumps(root)
+                    # logging.info('numberOfQueue = ' + s)
+                    wsclients.send(s)
+                    time.sleep(3)
+
+            # print(len(wsclients))
+            # subscribe topic by mqtt
+            def on_connect(client, userdata, flags, rc):
+                logging.info('connected numQueue')
+                # Subscribing in on_connect() means that if we lose the connection and
+                # reconnect then subscriptions will be renewed.
+                client.subscribe(topic='numQueue')
+                logging.info('subscribe numQueue')
+
+            # The callback for when a PUBLISH message is received from the server.
+            def on_message(client, userdata, msg):
+
+                wsclients.send(msg.payload)
+                # for client in clients:
+                #     print(len(clients))
+                #     client.send(msg.payload)
+
+            client = mqtt.Client()
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.connect(MQTT_URL, 1883, 60)
+            client.loop_forever()
+        finally:
+            # clients.remove(request.websocket)
+            lock.release()
+
+#{ mostContactTime: 12 }
+@accept_websocket
+def mostContactTime(request):
+    if request.is_websocket:
+        lock = threading.RLock()
+        try:
+            lock.acquire()
+            wsclients = request.websocket
+            if TEST_MODE:
+                logging.info('test mostContactTime')
+                while True:
+                    root = dict()
+                    root['mostContactTime'] = int(np.random.randint(low=0, high=2000, size=1)[0])
+                    s = json.dumps(root)
+                    # logging.info('mostContactTime msg = '+ s)
+                    wsclients.send(s)
+                    time.sleep(3)
+
+            # print(len(wsclients))
+            # subscribe topic by mqtt
+            def on_connect(client, userdata, flags, rc):
+                print("Connected with result code " + str(rc))
+
+                # Subscribing in on_connect() means that if we lose the connection and
+                # reconnect then subscriptions will be renewed.
+                client.subscribe(topic='age')
+                print('subscribe mostContactTime successfully')
+
+            # The callback for when a PUBLISH message is received from the server.
+            def on_message(client, userdata, msg):
+
+                wsclients.send(msg.payload)
+                # for client in clients:
+                #     print(len(clients))
+                #     client.send(msg.payload)
+
+            client = mqtt.Client()
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.connect(MQTT_URL, 1883, 60)
+            client.loop_forever()
+        finally:
+            # clients.remove(request.websocket)
+            lock.release()
+
+def areaHandle(request):
+    logging.info('areaHandle request')
+    msg = None
+    logging.info(request.method)
+    if request.method == 'POST':
+        msg = request.POST
+    elif request.method == 'GET':
+        msg = request.GET
+    root = dict()
+    logging.info(msg['flag'])
+    if msg['flag'] == 'get_image':
+        rtsp_url = None  # todo: get the url of topic
+        img = cv2.imread('/media/img/offline.jpg')  # todo: get the image of url
+        root['flag'] = 'return_img'
+        root['topic'] = msg['topic']
+        img_str = base64.b64encode(cv2.imencode('.jpg', img)[1]).decode()
+        root['img'] = img_str
+        s = json.dumps(root)
+        logging.info('encoded = ' +s )
+        return HttpResponse(s)
+    elif msg['flag'] == 'send_area':
+        root['flag'] = 'response'
+        try:
+            area = msg['area']
+            size = msg['size']
+            root['status'] = '1'
+        except:
+            root['status'] = '2'
+        s = json.dumps(root)
+        return HttpResponse(s)
+        #todo: return the result to frontend
+
+
 urlpatterns = [
     # Example:
     url(r'^$', base_view),
-    # url(r'^warning', warning),
-    # url(r'^genderRate', genderRate),
+    url(r'^warning', warning),
+    url(r'selectPerson', selectPerson),
+    url(r'offlineImage', offlineImage),
+    url(r'managerStatus', managerStatus),
+    url(r'mostStaningTime', mostStaningTime),
+    url(r'mostContactTime', mostContactTime),
+    url(r'^numQueue', numQueue),
+    url(r'^areaHandle', areaHandle),
+
+    url(r'^genderRate', genderRate),
     # url(r'^latestday', latestday),
     # url(r'^image', face),
     # url(r'^faceAttr', faceAttr),
     # url(r'^face', face),
-    # url(r'^age', age),
-    url(r'selectPerson', selectPerson),
-    url(r'offlineImage', offlineImage),
+    # url(r'^ageRate', ageRate),
+
     # Uncomment the admin/doc line below and add 'django.contrib.admindocs'
     # to INSTALLED_APPS to enable admin documentation:
     # (r'^admin/doc/', include('django.contrib.admindocs.urls')),

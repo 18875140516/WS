@@ -19,6 +19,7 @@ def warning():
         publish.single('warning', payload=s, hostname=MQTT_URL)
         time.sleep(4)
 
+
 def numQueue():
     root = dict()
     while True:
