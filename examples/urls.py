@@ -650,7 +650,8 @@ def areaHandle(request):
     msg = None
     logging.info(request.method)
     if request.method == 'POST':
-        msg = request.POST
+        msg = request.body
+        msg = json.loads(msg)
     elif request.method == 'GET':
         msg = request.GET
     root = dict()
@@ -663,13 +664,15 @@ def areaHandle(request):
         img_str = base64.b64encode(cv2.imencode('.jpg', img)[1]).decode()
         root['img'] = img_str
         s = json.dumps(root)
-        logging.info('encoded = ' +s )
+        #logging.info('encoded = ' +s )
         return HttpResponse(s)
     elif msg['flag'] == 'send_area':
         root['flag'] = 'response'
         try:
             area = msg['area']
             size = msg['size']
+            logging.info('type = ' + str(type(area)) + 'area = ' + str(area))
+            logging.info('type = ' + str(type(size)) + 'size = ' + str(size))
             root['status'] = '1'
         except:
             root['status'] = '2'
