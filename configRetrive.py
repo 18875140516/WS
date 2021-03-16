@@ -3,13 +3,17 @@ import threading
 import logging
 import json
 import time
+import socket
 MQTT_URL = '211.67.21.65'
 # MQTT_URL = 'x.y.z.p'
 PORT =1883
 TOPIC = 'config'
-logging.basicConfig(filename='logger.log', level=logging.INFO,
+#SERVER_IP='211.67.21.65'
+SERVER_IP = '127.0.0.1'
+SERVER_PORT = 10086
+logging.basicConfig(filename='/log/logger.log', level=logging.INFO,
                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
-                        datefmt='%a, %d %b %Y %H:%M:%S',)
+                        datefmt='%a, %d %b %Y %H:%M:%S')
 class ConfigRetrive:
     #initialize config
     def __init__(self, url=MQTT_URL, port=PORT, topic=TOPIC):
@@ -18,6 +22,7 @@ class ConfigRetrive:
         self.url = url
         self.config = dict()
         self.client = mqtt.Client()
+        self.getConfigFromServer()
         def task(client, config):
             def on_connect(client, userdata, flags, rc):
                 client.subscribe(topic=self.topic)
@@ -42,8 +47,22 @@ class ConfigRetrive:
             logging.warning(key + " not in config map" )
             return default_value
 
+    def getConfigFromServer(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        print('connecting')
+        s.connect((SERVER_IP, SERVER_PORT))
+        print('connected')
+        cfg_byte = s.recv(1024*1024)
+        print(cfg_byte)
+        print('parsing')
+        cfg_str = cfg_byte.decode()
+        self.config = json.loads(cfg_str)
+        print(self.config)
 #-------------------------------------------以下为操作示例--------------------    
-
+# config = ConfigRetrive()
+# while True:
+#     print(config.config)
+#     time.sleep(3)
 # #模拟配置生,这个主要测试配置的生成,后续会实现自动化配置上传
 # import paho.mqtt.publish as publish
 # import numpy as np

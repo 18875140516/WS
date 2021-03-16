@@ -15,12 +15,13 @@ import time
 import logging
 import pymysql
 from configRetrive import ConfigRetrive
-logging.basicConfig(filename='logger.log', level=logging.INFO,
+logging.basicConfig(filename='/log/logger.log', level=logging.INFO,
                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                         datefmt='%a, %d %b %Y %H:%M:%S',)
 # Uncomment the next two lines to enable the admin:
 # from django.contrib import admin
 # admin.autodiscover()
+logging.info('-------------------------BEGIN-------------------------')
 MQTT_URL = '127.0.0.1'
 CONFIG_TOPIC = 'config'
 PORT = 1883
@@ -31,6 +32,7 @@ MYSQL_PASSWORD = 'lyz'
 MYSQL_DB = 'mysql'
 logging.info('initiate configRetrive')
 config = ConfigRetrive()
+
 logging.info('url init config')
 MYSQL_IP = config.get('MYSQL_IP', MYSQL_IP)
 MYSQL_PORT = config.get('MYSQL_PORT', MYSQL_PORT)
@@ -41,12 +43,15 @@ MYSQL_DB = config.get('MYSQL_DB', MYSQL_DB)
 logging.info('initiate mysql connect')
 global_db = pymysql.connect(host=MYSQL_IP, port=MYSQL_PORT, user=MYSQL_USER, password=MYSQL_PASSWORD, db=MYSQL_DB)
 
-
+warning_hash = dict()
 TEST_MODE = False
 def base_view(request):
     print('ssss')
 
     return render(request, 'test.html')
+
+def ICBC(request):
+    return render(request, '/home/liuyongzhi/Downloads/dist/index.html')
 
 clients = []
 
@@ -82,6 +87,10 @@ def warning(request):
 
             # The callback for when a PUBLISH message is received from the server.
             def on_message(client, userdata, msg):
+                if msg.payload not in warning_hash.keys():
+                    #todo :control warning circle
+                    warning_hash[msg.payload] = time.time()
+
                 wsclients.send(msg.payload)
                 # for client in clients:
                 #     client.send(msg.payload)
@@ -92,7 +101,6 @@ def warning(request):
             client.connect(MQTT_URL, 1883, 60)
             client.loop_forever()
         finally:
-            clients.remove(request.websocket)
             lock.release()
 
 # 	{ 'population': [12, 34] }
@@ -524,22 +532,23 @@ def managerStatus(request):
             # clients.remove(request.websocket)
             lock.release()
 
-#mostStaningTime
+#mostStandingTime
 @accept_websocket
-def mostStaningTime(request):
+def mostStandingTime(request):
+    logging.info('most standing time')
     if request.is_websocket:
         lock = threading.RLock()
         try:
             lock.acquire()
             wsclients = request.websocket
-            if TEST_MODE:
-                logging.info('test mostStaningTime')
-                while True:
-                    root = dict()
-                    root['mostStaningTime'] = int(np.random.randint(low=0, high=2000, size=1)[0])
-                    s = json.dumps(root)
-                    wsclients.send(s)
-                    time.sleep(3)
+#            if TEST_MODE:
+#                logging.info('test mostStandingTime')
+#                while True:
+#                    root = dict()
+#                    root['mostStandingTime'] = int(np.random.randint(low=0, high=2000, size=1)[0])
+#                    s = json.dumps(root)
+#                    wsclients.send(s)
+#                    time.sleep(3)
 
             # print(len(wsclients))
             # subscribe topic by mqtt
@@ -548,8 +557,8 @@ def mostStaningTime(request):
 
                 # Subscribing in on_connect() means that if we lose the connection and
                 # reconnect then subscriptions will be renewed.
-                client.subscribe(topic='age')
-                print('subscribe mostStaningTime successfully')
+                client.subscribe(topic='mostStandingTime')
+                print('subscribe mostStandingTime successfully')
 
             # The callback for when a PUBLISH message is received from the server.
             def on_message(client, userdata, msg):
@@ -558,7 +567,7 @@ def mostStaningTime(request):
                 # for client in clients:
                 #     print(len(clients))
                 #     client.send(msg.payload)
-
+            logging.info('mostStandingTime')
             client = mqtt.Client()
             client.on_connect = on_connect
             client.on_message = on_message
@@ -575,16 +584,16 @@ def numQueue(request):
         try:
             lock.acquire()
             wsclients = request.websocket
-            if TEST_MODE:
-                logging.info('test numQueue')
-                while True:
-                    root = dict()
-                    root['numberOfQueue'] = int(np.random.randint(low=0, high=50, size=1)[0])
-                    s = json.dumps(root)
-                    # logging.info('numberOfQueue = ' + s)
-                    wsclients.send(s)
-                    time.sleep(3)
-
+#            if TEST_MODE:
+#                logging.info('test numQueue')
+#                while True:
+#                    root = dict()
+#                    root['numberOfQueue'] = int(np.random.randint(low=0, high=50, size=1)[0])
+#                    s = json.dumps(root)
+#                    # logging.info('numberOfQueue = ' + s)
+#                    wsclients.send(s)
+#                    time.sleep(3)
+#
             # print(len(wsclients))
             # subscribe topic by mqtt
             def on_connect(client, userdata, flags, rc):
@@ -619,16 +628,16 @@ def mostContactTime(request):
         try:
             lock.acquire()
             wsclients = request.websocket
-            if TEST_MODE:
-                logging.info('test mostContactTime')
-                while True:
-                    root = dict()
-                    root['mostContactTime'] = int(np.random.randint(low=0, high=2000, size=1)[0])
-                    s = json.dumps(root)
-                    # logging.info('mostContactTime msg = '+ s)
-                    wsclients.send(s)
-                    time.sleep(3)
-
+#            if TEST_MODE:
+#                logging.info('test mostContactTime')
+#                while True:
+#                    root = dict()
+#                    root['mostContactTime'] = int(np.random.randint(low=0, high=2000, size=1)[0])
+#                    s = json.dumps(root)
+#                    # logging.info('mostContactTime msg = '+ s)
+#                    wsclients.send(s)
+#                    time.sleep(3)
+#
             # print(len(wsclients))
             # subscribe topic by mqtt
             def on_connect(client, userdata, flags, rc):
@@ -693,6 +702,7 @@ def areaHandle(request):
                 logging.info(msg['topic'])
                 root[msg['topic']] = tmp
                 s = json.dumps(root)
+                logging.info('get a new area '+ s)
                 logging.info(s)
                 publish.single(topic=CONFIG_TOPIC, hostname=MQTT_URL, payload=s)
             root['status'] = '1'
@@ -716,18 +726,25 @@ def selectPattern(request):
         #todo: insert imgs to the database(ok) and update backend operate, send received image to topic config(key=manager_pattern)
         #check if img_id in database
         try:
-            root[msg['topic']] = msg['img']
+            img_b64 = base64.b64decode(msg['img'])
+            img_array = np.fromstring(img_b64, np.uint8)
+            img = cv2.imdecode(img_array, cv2.COLOR_BGR2RGB)
+            img = cv2.resize(img, (148, 384))
+
+            img_s = base64.b64encode(cv2.imencode('.jpg', img)[1]).decode()
+            root[msg['topic']] = img_s
             cursor = global_db.cursor()
             s = json.dumps(root)      
-            logging.info(str(s))
+            # logging.info(str(s))
+            publish.single(topic='config', hostname=MQTT_URL, payload=s)
             if msg['img_id'] == -1:
                 #upload img
                 ret = cursor.execute(r"insert into pattern_infos(img, topic, timestamp) values ('{}', '{}', '{}')"
-                        .format(msg['img'], msg['topic'],msg['timestamp']))
+                        .format(img_s, msg['topic'],msg['timestamp']))
                 global_db.commit()
                 if ret == 1:
                     logging.info('insert mysql pattern_infos OK')
-            
+                    
 
             return HttpResponse('ok')
         except:
@@ -740,9 +757,8 @@ def selectPattern(request):
             root['topics'] = []
             root['img_ids'] = []
             root['timestamps'] = []
-
             cursor = global_db.cursor()
-            cursor.execute(r'select * from pattern_infos order by timestamp limit 10')
+            cursor.execute(r'select * from pattern_infos order by timestamp desc limit 5')
             ret = cursor.fetchall()
             for item in ret:
                 root['imgs'].append(item[0])
@@ -753,20 +769,236 @@ def selectPattern(request):
             return HttpResponse(s)
         except:
             return HttpResponse('error')
+    return HttpResponse("paramter error")
 
+def setEntrySize(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+        k = str(list(msg.keys())[0])
+        v = msg[k]
+        root[k] = v
+        s = json.dumps(root)
+        publish.single('config', payload=s, hostname=MQTT_URL)
+        return HttpResponse('ok')
+    except:
+        return HttpResponse('error')
+
+def setBankCapacity(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+        k = str(list(msg.keys())[0])
+        v = msg[k]
+        root[k] = v
+        s = json.dumps(root)
+        publish.single('config', payload=s, hostname=MQTT_URL)
+        return HttpResponse('ok')
+    except:
+        return HttpResponse('error')
+
+
+def setWaitTime(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+        k = str(list(msg.keys())[0])
+        v = msg[k]
+        root[k] = v
+        s = json.dumps(root)
+        publish.single('config', payload=s, hostname=MQTT_URL)
+        return HttpResponse('ok')
+    except:
+        return HttpResponse('error')
+
+
+def setWaitNumber(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+        k = str(list(msg.keys())[0])
+        v = msg[k]
+        root[k] = v
+        s = json.dumps(root)
+        publish.single('config', payload=s, hostname=MQTT_URL)
+        return HttpResponse('ok')
+    except:
+        return HttpResponse('error')
+
+
+def setLeaveTime(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+        k = str(list(msg.keys())[0])
+        v = msg[k]
+        root[k] = v
+        s = json.dumps(root)
+        publish.single('config', payload=s, hostname=MQTT_URL)
+        return HttpResponse('ok')
+    except:
+        return HttpResponse('error')
+
+
+def setContactTime(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+        k = str(list(msg.keys())[0])
+        v = msg[k]
+        root[k] = v
+        s = json.dumps(root)
+        publish.single('config', payload=s, hostname=MQTT_URL)
+        return HttpResponse('ok')
+    except:
+        return HttpResponse('error')
+
+def getWaitNumber(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+
+        k = 'waitNumber'
+        v = config.get(k, '999')
+        print('waitNumber = ', v)
+        root[k] = v
+        s = json.dumps(root)
+        return HttpResponse(s)
+    except:
+        return HttpResponse('error')
+
+def getLeaveTime(request):
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+
+        k = 'leaveTime'
+
+        v = config.get(k, '999')
+
+        root[k] = v
+        s = json.dumps(root)
+        return HttpResponse(s)
+    except:
+        return HttpResponse('error')
+
+def getContactTime(request):
+    logging.info('getContactTime')
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+
+        k = 'contactTime'
+
+        v = config.get(k, '999')
+
+        root[k] = v
+        s = json.dumps(root)
+        return HttpResponse(s)
+    except:
+        return HttpResponse('error')
+def getWaitTime(request):
+    logging.info('getWaitTime')
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+
+        k = 'waitTime'
+
+        v = config.get(k, '999')
+
+        root[k] = v
+        s = json.dumps(root)
+        return HttpResponse(s)
+    except:
+        return HttpResponse('error')
+def getEntrySize(request):
+    logging.info('getEntrySize')
+    try:
+        if request.method == 'POST':
+            msg = request.body
+            msg = json.loads(msg)
+        elif request.method == 'GET':
+            msg = request.GET
+        root = dict()
+
+        k = 'entrySize'
+
+        v = config.get(k, '999')
+
+        root[k] = v
+        s = json.dumps(root)
+        return HttpResponse(s)
+    except:
+        return HttpResponse('error')
 urlpatterns = [
     # Example:
     url(r'^$', base_view),
-    # url(r'^warning', warning),
+    url(r'ICBC', ICBC),
+    url(r'^warning', warning),
     url(r'selectPerson', selectPerson),
     url(r'offlineImage', offlineImage),
     url(r'managerStatus', managerStatus), #test ok
-    # url(r'mostStaningTime', mostStaningTime), #test ok
-    # url(r'mostContactTime', mostContactTime), #test ok
-    # url(r'^numQueue', numQueue), #test ok
+    url(r'mostStandingTime', mostStandingTime), #test ok
+    url(r'mostContactTime', mostContactTime), #test ok
+    url(r'^numQueue', numQueue), #test ok
     url(r'^areaHandle', areaHandle), #test ok
     url(r'^selectPattern', selectPattern),
+     
 
+    #some config information
+    url(r'setEntrySize', setEntrySize),
+    url(r'setBankCapacity', setBankCapacity),
+    url('setWaitTime', setWaitTime),
+    url(r'setWaitNumber', setWaitNumber),
+    url(r'setLeaveTime', setLeaveTime),
+    url(r'setContactTime', setContactTime),
+    
+    url(r'getWaitNumber', getWaitNumber),
+    url(r'getLeaveTime', getLeaveTime),
+    url(r'getContactTime', getContactTime),
+    url(r'getWaitTime', getWaitTime),
+    url(r'getEntrySize', getEntrySize),
     # url(r'^genderRate', genderRate),#test ok
     # url(r'^latestday', latestday),
     # url(r'^image', face),
