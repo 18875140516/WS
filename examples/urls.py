@@ -15,6 +15,11 @@ import time
 import logging
 import pymysql
 from configRetrive import ConfigRetrive
+from udn_socket import UDNServer
+from register_event_handler import RegisterEventHandler
+
+USE_UDN = False
+und_server = UDNServer()
 logging.basicConfig(filename='/log/logger.log', level=logging.INFO,
                     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                         datefmt='%a, %d %b %Y %H:%M:%S',)
@@ -22,7 +27,7 @@ logging.basicConfig(filename='/log/logger.log', level=logging.INFO,
 # from django.contrib import admin
 # admin.autodiscover()
 logging.info('-------------------------BEGIN-------------------------')
-MQTT_URL = '127.0.0.1'
+MQTT_URL = '211.67.21.65'
 CONFIG_TOPIC = 'config'
 PORT = 1883
 MYSQL_IP = '211.67.21.65'
@@ -87,10 +92,15 @@ def warning(request):
 
             # The callback for when a PUBLISH message is received from the server.
             def on_message(client, userdata, msg):
+                
                 if msg.payload not in warning_hash.keys():
                     #todo :control warning circle
                     warning_hash[msg.payload] = time.time()
-
+                elif msg.payload in warning_hash.keys():
+#                    print(time.time() - warning_hash[msg.payload])
+                    if time.time() - warning_hash[msg.payload] < 10:
+                        warning_hash[msg.payload] = time.time()
+                        return
                 wsclients.send(msg.payload)
                 # for client in clients:
                 #     client.send(msg.payload)
@@ -406,6 +416,8 @@ def offlineImage(request):
             lock.acquire()
             logging.info('receive a new websocket about offlineImage!')
             wsclients = request.websocket
+            RegisterEventHandler('/tmp/test.jpg', wsclients)
+            return
             if TEST_MODE:
                 if os.path.exists('/media/video/test.avi'):
                     cap = cv2.VideoCapture('/media/video/test.avi')
@@ -415,7 +427,8 @@ def offlineImage(request):
                     ret, img = cap.read()
                     s = base64.b64encode(cv2.imencode('.jpg', img)[1]).decode()
                     wsclients.send(s)
-
+            if USE_UDN:
+                UDNServer.transfer_img(wsclients)
             # print(len(wsclients))
             # subscribe topic by mqtt
             def on_connect(client, userdata, flags, rc):
@@ -436,6 +449,19 @@ def offlineImage(request):
             client.loop_forever()
         finally:
             clients.remove(request.websocket)
+            lock.release()
+
+@accept_websocket
+def flowStanding(request):
+    img_path = '/tmp/standing.jpg'
+    if request.is_websocket:
+        print('flow standing')
+        lock = threading.RLock()
+        try:
+            lock.acquire()
+            wsclient = request.websocket
+            RegisterEventHandler(img_path, wsclient)
+        finally:
             lock.release()
 
 #{ 'age': [12, 13, 20, 23] }
@@ -495,6 +521,8 @@ def managerStatus(request):
         try:
             lock.acquire()
             wsclients = request.websocket
+
+
             if False and TEST_MODE:
                 logging.info('test managerStatus')
                 status = ['online', 'offline', 'leave']
@@ -729,7 +757,7 @@ def selectPattern(request):
             img_b64 = base64.b64decode(msg['img'])
             img_array = np.fromstring(img_b64, np.uint8)
             img = cv2.imdecode(img_array, cv2.COLOR_BGR2RGB)
-            img = cv2.resize(img, (148, 384))
+            img = cv2.resize(img, (128, 384))
 
             img_s = base64.b64encode(cv2.imencode('.jpg', img)[1]).decode()
             root[msg['topic']] = img_s
@@ -946,7 +974,6 @@ def getWaitTime(request):
         k = 'waitTime'
 
         v = config.get(k, '999')
-
         root[k] = v
         s = json.dumps(root)
         return HttpResponse(s)
@@ -955,29 +982,114 @@ def getWaitTime(request):
 def getEntrySize(request):
     logging.info('getEntrySize')
     try:
-        if request.method == 'POST':
-            msg = request.body
-            msg = json.loads(msg)
-        elif request.method == 'GET':
-            msg = request.GET
-        root = dict()
-
-        k = 'entrySize'
-
+        if request.method == 'POST': 
+            msg = request.body       
+            msg = json.loads(msg)  
+        elif request.method == 'GET': 
+            msg = request.GET  
+        root = dict()   
+    
+        k = 'entrySize'    
+    
         v = config.get(k, '999')
+   
+        root[k] = v   
+        s = json.dumps(root)  
+        return HttpResponse(s) 
+    except: 
+        return HttpResponse('error') 
+def getPattern(request):
+    print("getPattern")
+    logging.info('getPattern')
+    try:
+        if request.method == 'POST': 
+            msg = request.body       
+            msg = json.loads(msg)  
+        elif request.method == 'GET': 
+            msg = request.GET  
+        root = dict()   
+        if msg['flag'] == 'get_pattern':
+            topic = msg['topic']
+            root['topic'] = topic
+            root['img'] = config.get(topic, None)
+            s = json.dumps(root)
 
-        root[k] = v
-        s = json.dumps(root)
-        return HttpResponse(s)
-    except:
-        return HttpResponse('error')
+            return HttpResponse(s) 
+        return HttpResponse('flag error')
+    except: 
+        return HttpResponse('error') 
+@accept_websocket 
+def leftover(request): 
+    """ 
+    展示遗留物品类别及图片信息 
+    :param request: 
+    :return: {'img':base64img,'classes':bag}
+    """ 
+    #main() 
+    if request.is_websocket: 
+        lock = threading.RLock() 
+        try: 
+            lock.acquire() 
+            print("receive a new ws about abnormal")
+            wsclients = request.websocket
+  
+            def on_connect(clent, userdata, flags, rc):
+                print("Connected with result code " + str(rc))
+                client.subscribe(topic="leftover")
+                print('subscribe abnormal successfully')
+    
+            def on_message(client, userdata, msg):
+                wsclients.send(msg.payload)
+     
+            client.on_connect = on_connect
+            client.on_message = on_message
+            client.connect(host=MQTT_URL, port=MQTT_PORT)
+            client.loop_forever()
+            # client.loop_start()
+        finally:
+            lock.release()
+@accept_websocket
+def abnormal(request):
+    """ 
+    展示危险物品类别及图片信息
+    :param request:
+    :return: {'img':base64img,'name':knife}
+    """ 
+    if request.is_websocket:
+        lock = threading.RLock()
+        try: 
+            lock.acquire()
+            print("receive a new ws about abnormal")
+            wsclients = request.websocket
+ 
+            def on_connect(client, userdata, flags, rc):
+                print("Connected with result code " + str(rc))
+                client.subscribe(topic="abnormal")
+                print('subscribe abnormal successfully')
+ 
+            def on_message(client, userdata, msg):
+                wsclients.send(msg.payload)
+ 
+            client = mqtt.Client()
+            client.on_connect = on_connect
+            client.on_message = on_message
+            A
+            client.connect(host=MQTT_URL, port=MQTT_PORT)
+            client.loop_forever()
+            # client.loop_start()
+        finally:
+            lock.release()
 urlpatterns = [
     # Example:
     url(r'^$', base_view),
     url(r'ICBC', ICBC),
     url(r'^warning', warning),
     url(r'selectPerson', selectPerson),
-    url(r'offlineImage', offlineImage),
+    url(r'flowStanding', flowStanding),
+    #url(r'flowFace', flowStanding),
+    #url(r'flowDangerous', flowStanding),
+    #url(r'flowLeftover', flowStanding),
+    #url(r'flowOffline', flowStanding),
     url(r'managerStatus', managerStatus), #test ok
     url(r'mostStandingTime', mostStandingTime), #test ok
     url(r'mostContactTime', mostContactTime), #test ok
@@ -999,6 +1111,9 @@ urlpatterns = [
     url(r'getContactTime', getContactTime),
     url(r'getWaitTime', getWaitTime),
     url(r'getEntrySize', getEntrySize),
+	url(r'leftover', leftover),
+	url(r'abnormal', abnormal),
+    url(r'getPattern', getPattern),
     # url(r'^genderRate', genderRate),#test ok
     # url(r'^latestday', latestday),
     # url(r'^image', face),
